@@ -1,0 +1,104 @@
+name: Deploy bowlslink ETL (single env)
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [ main ]  # optional: auto-deploy on main pushes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: bowlslink-etl-deploy
+      cancel-in-progress: false
+
+    env:
+      # ---- configure these via repo secrets (see below) ----
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_REGION:     ${{ secrets.GCP_REGION }}
+      # ------------------------------------------------------
+      FUNC_NAME:      bowlslink-etl
+      SCHEDULER_JOB:  bowlslink-etl
+      SCHED_CRON:     "30 9 * * *"          # 09:30 daily
+      SCHED_TZ:       "Australia/Melbourne"
+      PG_SECRET_NAME: PG_DSN
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Enable required APIs (idempotent)
+        run: |
+          gcloud services enable \
+            cloudfunctions.googleapis.com run.googleapis.com cloudscheduler.googleapis.com \
+            secretmanager.googleapis.com iam.googleapis.com cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com
+
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Run Bronze migration on Supabase
+        run: |
+          for f in db/bronze/*.sql; do
+            echo "Applying $f"
+            psql "${{ secrets.SUPABASE_DB_URI }}" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Ensure Secret exists
+        continue-on-error: true
+        run: gcloud secrets create "$PG_SECRET_NAME" --replication-policy=automatic
+
+      - name: Update Secret value (Supabase DSN)
+        run: |
+          printf '%s' "${{ secrets.SUPABASE_DB_URI }}" | \
+          gcloud secrets versions add "$PG_SECRET_NAME" --data-file=-
+
+      - name: Deploy Cloud Function (Gen2, Python)
+        run: |
+          gcloud functions deploy "$FUNC_NAME" \
+            --gen2 \
+            --runtime python311 \
+            --region "${{ env.GCP_REGION }}" \
+            --source data-pipeline \
+            --entry-point bronze.main \
+            --trigger-http \
+            --no-allow-unauthenticated \
+            --timeout=3600 \
+            --memory=1024Mi \
+            --set-secrets=PG_DSN=${PG_SECRET_NAME}:latest \
+            --set-env-vars=ENDPOINTS_FILE=config/endpoints.json
+
+      - name: Create Scheduler SA (idempotent) and grant invoke
+        run: |
+          SA="scheduler-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          gcloud iam service-accounts create scheduler-sa --display-name="Scheduler SA" || true
+          gcloud run services add-iam-policy-binding "$FUNC_NAME" \
+            --region "${{ env.GCP_REGION }}" \
+            --member="serviceAccount:${SA}" \
+            --role="roles/run.invoker" || true
+
+      - name: Create/Update Cloud Scheduler job (Melbourne TZ)
+        run: |
+          SA="scheduler-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+          FUNC_URL=$(gcloud functions describe "$FUNC_NAME" --gen2 --region "${{ env.GCP_REGION }}" --format="value(serviceConfig.uri)")
+          gcloud scheduler jobs create http "${{ env.SCHEDULER_JOB }}" \
+            --schedule="${{ env.SCHED_CRON }}" \
+            --time-zone="${{ env.SCHED_TZ }}" \
+            --uri="$FUNC_URL" \
+            --http-method=POST \
+            --oidc-service-account-email="$SA" || \
+          gcloud scheduler jobs update http "${{ env.SCHEDULER_JOB }}" \
+            --schedule="${{ env.SCHED_CRON }}" \
+            --time-zone="${{ env.SCHED_TZ }}" \
+            --uri="$FUNC_URL" \
+            --http-method=POST \
+            --oidc-service-account-email="$SA"

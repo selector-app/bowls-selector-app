@@ -1,0 +1,22 @@
+{
+    "competitions": {
+      "urls": [
+        "https://results.bowlslink.com.au/competition/6484937e-4cfb-4ab5-a946-e5a00b78c61a#matches/1",
+        "https://results.bowlslink.com.au/competition/410f93c1-4c0e-41b1-8403-feae6b1ebc56/2#matches"
+      ],
+      "ids": []
+    },
+    "rounds": { "mode": "manual", "start": 1, "end": 1 },
+    "sections": { "mode": "auto", "start": 1, "end": 20, "cap": 30 },
+    "endpoints": [
+      {
+        "name": "matches",
+        "url": "https://api.bowlslink.com.au/results-api/competition/{competition_id}/matches"
+      },
+      {
+        "name": "ladder",
+        "url": "https://api.bowlslink.com.au/results-api/competition/{competition_id}/ladder?section={section}"
+      }
+    ]
+  }
+  
