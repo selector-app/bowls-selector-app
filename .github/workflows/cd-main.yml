@@ -3,7 +3,7 @@ name: Deploy bowlslink ETL (single env)
 on:
   workflow_dispatch: {}
   push:
-    branches: [ main ]  # optional: auto-deploy on main pushes
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -13,14 +13,11 @@ jobs:
       cancel-in-progress: false
 
     env:
-      # ---- configure these via repo secrets (see below) ----
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_REGION:     ${{ secrets.GCP_REGION }}
-      RUNTIME_SA: function-runner@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
-      # ------------------------------------------------------
       FUNC_NAME:      bowlslink-etl
       SCHEDULER_JOB:  bowlslink-etl
-      SCHED_CRON:     "30 9 * * *"          # 09:30 daily
+      SCHED_CRON:     "30 9 * * *"               # 09:30 daily
       SCHED_TZ:       "Australia/Melbourne"
       PG_SECRET_NAME: PG_DSN
 
@@ -37,13 +34,15 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Grant Secret Accessor to default runtime SA (idempotent)
+      # Optional: keep this step if your SA can enable services; otherwise delete it.
+      - name: (Optional) Enable required APIs (idempotent)
+        continue-on-error: true
         run: |
-          PROJECT_NUMBER=$(gcloud projects describe "${{ env.GCP_PROJECT_ID }}" --format="value(projectNumber)")
-          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-          gcloud secrets add-iam-policy-binding "$PG_SECRET_NAME" \
-            --member="serviceAccount:${RUNTIME_SA}" \
-            --role="roles/secretmanager.secretAccessor" || true
+          gcloud services enable \
+            cloudresourcemanager.googleapis.com \
+            cloudfunctions.googleapis.com run.googleapis.com cloudscheduler.googleapis.com \
+            secretmanager.googleapis.com iam.googleapis.com cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com
 
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -55,7 +54,7 @@ jobs:
             psql "${{ secrets.SUPABASE_DB_URI }}" -v ON_ERROR_STOP=1 -f "$f"
           done
 
-      - name: Ensure Secret exists
+      - name: Ensure Secret exists (PG_DSN)
         continue-on-error: true
         run: |
           gcloud secrets create "$PG_SECRET_NAME" --replication-policy=automatic || \
@@ -81,28 +80,43 @@ jobs:
             --set-secrets=PG_DSN=${PG_SECRET_NAME}:latest \
             --set-env-vars=ENDPOINTS_FILE=config/endpoints.json
 
-      - name: Create Scheduler SA (idempotent) and grant invoke
+      # 🔑 Use the DEFAULT runtime SA; don't create a new one.
+      - name: Compute runtime SA (default compute) and grant permissions
+        id: runtime_sa
         run: |
-          SA="scheduler-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
-          gcloud iam service-accounts create scheduler-sa --display-name="Scheduler SA" || true
+          PROJECT_NUMBER=$(gcloud projects describe "${{ env.GCP_PROJECT_ID }}" --format="value(projectNumber)")
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          echo "RUNTIME_SA=$RUNTIME_SA" >> $GITHUB_OUTPUT
+
+          # Allow the runtime SA to read the secret (idempotent)
+          gcloud secrets add-iam-policy-binding "$PG_SECRET_NAME" \
+            --member="serviceAccount:${RUNTIME_SA}" \
+            --role="roles/secretmanager.secretAccessor" || true
+
+          # Allow the runtime SA to invoke the function's Cloud Run service (idempotent)
           gcloud run services add-iam-policy-binding "$FUNC_NAME" \
             --region "${{ env.GCP_REGION }}" \
-            --member="serviceAccount:${SA}" \
+            --member="serviceAccount:${RUNTIME_SA}" \
             --role="roles/run.invoker" || true
 
+      # 🗓 Create/Update Scheduler (explicit location so App Engine is NOT required)
       - name: Create/Update Cloud Scheduler job (Melbourne TZ)
         run: |
-          SA="scheduler-sa@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
           FUNC_URL=$(gcloud functions describe "$FUNC_NAME" --gen2 --region "${{ env.GCP_REGION }}" --format="value(serviceConfig.uri)")
+          RUNTIME_SA="${{ steps.runtime_sa.outputs.RUNTIME_SA }}"
+
+          # Create or update in-place with explicit --location
           gcloud scheduler jobs create http "${{ env.SCHEDULER_JOB }}" \
+            --location="${{ env.GCP_REGION }}" \
             --schedule="${{ env.SCHED_CRON }}" \
             --time-zone="${{ env.SCHED_TZ }}" \
             --uri="$FUNC_URL" \
             --http-method=POST \
-            --oidc-service-account-email="$SA" || \
+            --oidc-service-account-email="$RUNTIME_SA" || \
           gcloud scheduler jobs update http "${{ env.SCHEDULER_JOB }}" \
+            --location="${{ env.GCP_REGION }}" \
             --schedule="${{ env.SCHED_CRON }}" \
             --time-zone="${{ env.SCHED_TZ }}" \
             --uri="$FUNC_URL" \
             --http-method=POST \
-            --oidc-service-account-email="$SA"
+            --oidc-service-account-email="$RUNTIME_SA"
