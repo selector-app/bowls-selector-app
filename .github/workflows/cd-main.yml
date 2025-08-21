@@ -37,15 +37,13 @@ jobs:
         with:
           project_id: ${{ env.GCP_PROJECT_ID }}
 
-      - name: Ensure runtime SA exists & can read secret
+      - name: Grant Secret Accessor to default runtime SA (idempotent)
         run: |
-          gcloud iam service-accounts create function-runner \
-            --display-name="Function Runtime" || true
-
-          # Grant only Secret Accessor on this specific secret
+          PROJECT_NUMBER=$(gcloud projects describe "${{ env.GCP_PROJECT_ID }}" --format="value(projectNumber)")
+          RUNTIME_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
           gcloud secrets add-iam-policy-binding "$PG_SECRET_NAME" \
-            --member="serviceAccount:${{ env.RUNTIME_SA }}" \
-            --role="roles/secretmanager.secretAccessor"
+            --member="serviceAccount:${RUNTIME_SA}" \
+            --role="roles/secretmanager.secretAccessor" || true
 
       - name: Install psql client
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
@@ -80,7 +78,6 @@ jobs:
             --no-allow-unauthenticated \
             --timeout=3600 \
             --memory=1024Mi \
-            --service-account "${{ env.RUNTIME_SA }}" \
             --set-secrets=PG_DSN=${PG_SECRET_NAME}:latest \
             --set-env-vars=ENDPOINTS_FILE=config/endpoints.json
 
