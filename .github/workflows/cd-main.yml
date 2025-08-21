@@ -48,7 +48,9 @@ jobs:
 
       - name: Ensure Secret exists
         continue-on-error: true
-        run: gcloud secrets create "$PG_SECRET_NAME" --replication-policy=automatic
+        run: |
+          gcloud secrets create "$PG_SECRET_NAME" --replication-policy=automatic || \
+          echo "Secret already exists, continuing..."
 
       - name: Update Secret value (Supabase DSN)
         run: |
@@ -61,7 +63,7 @@ jobs:
             --gen2 \
             --runtime python311 \
             --region "${{ env.GCP_REGION }}" \
-            --source data-pipeline/bronze \
+            --source data-pipeline \
             --entry-point main \
             --trigger-http \
             --no-allow-unauthenticated \
