@@ -16,7 +16,7 @@ jobs:
       # ---- configure these via repo secrets (see below) ----
       GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
       GCP_REGION:     ${{ secrets.GCP_REGION }}
-      RUNTIME_SA: function-runner@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+      RUNTIME_SA: function-runner@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
       # ------------------------------------------------------
       FUNC_NAME:      bowlslink-etl
       SCHEDULER_JOB:  bowlslink-etl
