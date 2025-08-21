@@ -61,8 +61,8 @@ jobs:
             --gen2 \
             --runtime python311 \
             --region "${{ env.GCP_REGION }}" \
-            --source data-pipeline \
-            --entry-point bronze.main \
+            --source data-pipeline/bronze \
+            --entry-point main \
             --trigger-http \
             --no-allow-unauthenticated \
             --timeout=3600 \
