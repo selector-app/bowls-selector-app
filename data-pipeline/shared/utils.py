@@ -4,9 +4,8 @@ Shared utilities for the BowlsLink data pipeline.
 Common functions used across bronze, silver, and gold layers.
 """
 
-import os
 import logging
-from typing import Optional
+import os
 
 # Load environment variables from .env file if it exists
 try:
@@ -29,7 +28,7 @@ def load_environment() -> None:
 
 
 def setup_logging(level: str = "INFO", 
-                 format_string: Optional[str] = None) -> logging.Logger:
+                 format_string: str | None = None) -> logging.Logger:
     """
     Set up logging configuration for the pipeline.
     

@@ -1,0 +1,29 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = [
+  "E",  # pycodestyle errors
+  "F",  # pyflakes
+  "I",  # isort (import order)
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+]
+ignore = [
+  # Allow longer lines if needed; rely on black for wrapping
+  "E501",
+]
+exclude = [
+  ".git",
+  ".github",
+  "**/.venv",
+  "**/__pycache__",
+  "**/.mypy_cache",
+]
+
+[tool.ruff.isort]
+known-first-party = ["bronze", "silver", "shared"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+exclude = '(\.git|\.venv|__pycache__|\.mypy_cache)'

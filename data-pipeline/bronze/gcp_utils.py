@@ -5,14 +5,14 @@ Handles GCP-specific functionality like Cloud Functions setup and environment co
 """
 
 import os
-from typing import Dict, Any
+from typing import Any
 
 
 class GCPConfig:
     """GCP-specific configuration and utilities."""
     
     @staticmethod
-    def get_gcp_config() -> Dict[str, Any]:
+    def get_gcp_config() -> dict[str, Any]:
         """
         Get GCP-specific configuration from environment variables.
         
@@ -37,7 +37,7 @@ class GCPConfig:
         return bool(os.getenv("K_SERVICE") or os.getenv("FUNCTION_NAME") or os.getenv("GOOGLE_CLOUD_PROJECT"))
     
     @staticmethod
-    def get_function_metadata() -> Dict[str, Any]:
+    def get_function_metadata() -> dict[str, Any]:
         """
         Get Cloud Function metadata for logging and monitoring.
         

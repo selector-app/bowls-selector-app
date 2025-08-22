@@ -7,9 +7,9 @@ and stores it in the bronze layer of the data lake.
 
 from .api_client import BowlsLinkAPIClient
 from .config import ConfigManager
-from .gcp_utils import GCPLogger, GCPConfig
-from .supabase_client import SupabaseClient, SupabaseConfig
+from .gcp_utils import GCPConfig, GCPLogger
 from .main import main
+from .supabase_client import SupabaseClient, SupabaseConfig
 
 __all__ = [
     'BowlsLinkAPIClient',

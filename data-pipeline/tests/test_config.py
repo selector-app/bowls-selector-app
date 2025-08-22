@@ -19,12 +19,12 @@ def test_config_loading():
         
         # Test config manager initialization
         config_manager = ConfigManager()
-        print(f"✅ Config manager initialized")
+        print("✅ Config manager initialized")
         print(f"   Config path: {config_manager.catalog_path}")
         
         # Test catalog loading
         catalog = config_manager.load_catalog()
-        print(f"✅ Catalog loaded successfully")
+        print("✅ Catalog loaded successfully")
         print(f"   Competitions: {len(catalog.get('competitions', {}).get('urls', []))} URLs")
         print(f"   Endpoints: {len(catalog.get('endpoints', []))} endpoints")
         
@@ -45,13 +45,10 @@ def test_imports():
     print("🔍 Testing imports...")
     
     try:
-        from bronze.api_client import BowlsLinkAPIClient
         print("✅ API client imported")
         
-        from bronze.config import ConfigManager
         print("✅ Config manager imported")
         
-        from bronze.gcp_utils import GCPLogger, GCPConfig
         print("✅ GCP utils imported")
         
         # Supabase client import might fail if psycopg2 is not installed
@@ -61,7 +58,6 @@ def test_imports():
         except ImportError as e:
             print(f"⚠️  Supabase client import failed (expected if psycopg2 not installed): {e}")
         
-        from shared.utils import load_environment, setup_logging
         print("✅ Shared utils imported")
         
         return True

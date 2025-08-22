@@ -4,11 +4,10 @@ Configuration management for the BowlsLink data pipeline.
 Handles loading the endpoints catalog, extracting competition IDs, and job generation.
 """
 
-import os
 import json
+import os
 import re
-from typing import Any, Dict, List
-import httpx
+from typing import Any
 
 
 class ConfigManager:
@@ -44,17 +43,17 @@ class ConfigManager:
         # Regex to extract competition UUID from Results Portal URLs
         self.comp_id_regex = re.compile(r"/competition/([0-9a-fA-F-]{36})")
     
-    def load_catalog(self) -> Dict[str, Any]:
+    def load_catalog(self) -> dict[str, Any]:
         """
         Load and parse the endpoints catalog JSON.
         
         Returns:
             Dict with keys like `competitions`, `rounds`, and `endpoints`.
         """
-        with open(self.catalog_path, "r") as f:
+        with open(self.catalog_path) as f:
             return json.load(f)
     
-    def extract_comp_ids(self, cfg: Dict[str, Any]) -> List[str]:
+    def extract_comp_ids(self, cfg: dict[str, Any]) -> list[str]:
         """
         Return a de-duplicated list of competition UUIDs from the catalog.
         
@@ -114,8 +113,8 @@ class ConfigManager:
         """
         return "{section}" in template
     
-    def render_jobs(self, cfg: Dict[str, Any], comp_ids: List[str], 
-                   api_client: Any) -> List[Dict[str, Any]]:
+    def render_jobs(self, cfg: dict[str, Any], comp_ids: list[str], 
+                   api_client: Any) -> list[dict[str, Any]]:
         """
         Expand the catalog into a concrete list of HTTP jobs to perform.
         

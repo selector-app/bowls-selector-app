@@ -5,10 +5,11 @@ Handles database operations, data storage, and Supabase-specific functionality.
 """
 
 import json
-from typing import Any, Dict, List, Optional
+import os
+from typing import Any
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import os
 
 
 class SupabaseClient:
@@ -27,7 +28,7 @@ class SupabaseClient:
         """Get a database connection."""
         return psycopg2.connect(self.connection_string)
     
-    def store_raw_events(self, events: List[Dict[str, Any]]) -> int:
+    def store_raw_events(self, events: list[dict[str, Any]]) -> int:
         """
         Store raw API events in the bronze layer.
         
@@ -49,7 +50,16 @@ class SupabaseClient:
                             INSERT INTO bronze.raw_events(
                                 source, endpoint, request_url, status_code,
                                 competition_id, round_number, section_number, etl_version, body_hash, payload
-                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            )
+                            SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM bronze.raw_events r
+                                WHERE r.endpoint = %s
+                                  AND r.competition_id = %s
+                                  AND COALESCE(r.round_number, -1) = COALESCE(%s, -1)
+                                  AND COALESCE(r.section_number, -1) = COALESCE(%s, -1)
+                                  AND r.body_hash = %s
+                            )
                         """, (
                             "bowlslink",
                             event["endpoint"],
@@ -60,16 +70,23 @@ class SupabaseClient:
                             event.get("section"),
                             "v1",
                             event["body_hash"],
-                            json.dumps(event["payload"])
+                            json.dumps(event["payload"]),
+                            # WHERE NOT EXISTS parameters
+                            event["endpoint"],
+                            event["competition_id"],
+                            event["round"],
+                            event.get("section"),
+                            event["body_hash"],
                         ))
-                        stored_count += 1
+                        # rowcount is 1 when inserted, 0 when conflict prevented insert
+                        stored_count += (cur.rowcount or 0)
                     except Exception as e:
                         print(f"Failed to store event: {e}")
                         continue
         
         return stored_count
     
-    def store_catalog_snapshot(self, catalog: Dict[str, Any]) -> bool:
+    def store_catalog_snapshot(self, catalog: dict[str, Any]) -> bool:
         """
         Store a snapshot of the catalog configuration.
         
@@ -94,7 +111,7 @@ class SupabaseClient:
             return False
     
     def get_latest_events(self, competition_id: str = None, 
-                         endpoint: str = None, section: int = None, limit: int = 100) -> List[Dict[str, Any]]:
+                         endpoint: str = None, section: int = None, limit: int = 100) -> list[dict[str, Any]]:
         """
         Retrieve the latest raw events from the database.
         
@@ -203,7 +220,7 @@ class SupabaseConfig:
     """Configuration for Supabase connection."""
     
     @staticmethod
-    def get_connection_string() -> Optional[str]:
+    def get_connection_string() -> str | None:
         """
         Get the Supabase connection string from environment.
         

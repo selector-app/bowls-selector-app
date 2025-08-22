@@ -21,8 +21,9 @@ data-pipeline/
 │   ├── gcp_utils.py       # GCP-specific utilities
 │   ├── main.py            # Main entrypoint for bronze ETL
 │   └── supabase_client.py # Database operations
-├── silver/                 # Silver layer ETL (future)
-│   └── __init__.py
+├── silver/                 # Silver layer ETL
+│   ├── __init__.py
+│   └── refresh.py         # Calls in-DB silver refresh functions
 ├── gold/                   # Gold layer ETL (future)
 │   └── __init__.py
 ├── shared/                 # Shared utilities across layers
@@ -55,9 +56,14 @@ THROTTLE_S=0.3
 
 ### 3. Set Up Database
 
-Run the SQL schema in your Supabase SQL editor:
+Run the SQL schemas in your Supabase SQL editor (or via psql):
 ```sql
+-- Bronze (tables, indexes, cleanup, views)
 -- Copy contents from db/bronze/supabase_schema.sql
+
+-- Silver (matches + ladder transformations)
+-- Copy contents from db/silver/matches.sql
+-- Copy contents from db/silver/ladder.sql
 ```
 
 ### 4. Test Connection
@@ -69,10 +75,21 @@ python test_supabase.py
 ### 5. Run the Pipeline
 
 ```bash
-python -m functions_framework --target=main --source=bronze/main.py --port=8080
+python -m functions_framework --target=main --source=main.py --port=8080
 ```
 
 Then make a request to `http://localhost:8080/`
+
+Response includes Bronze ingest summary and Silver refresh results, e.g.:
+```json
+{
+  "bronze": { "stored": 42, "errors": 0 },
+  "silver": {
+    "matches": { "inserted": 10, "updated": 2 },
+    "ladder":  { "inserted": 80, "updated": 5 }
+  }
+}
+```
 
 ## Configuration
 
@@ -138,15 +155,20 @@ SELECT * FROM bronze.latest_events;
 SELECT endpoint, COUNT(*) as count 
 FROM bronze.raw_events 
 GROUP BY endpoint;
+
+-- Silver: inspect ladder rows
+SELECT *
+FROM silver.ladder_rows
+WHERE competition_id = '410f93c1-4c0e-41b1-8403-feae6b1ebc56'
+ORDER BY section_number, position;
 ```
 
 ## Future Development
 
 ### Silver Layer
-- Data validation and cleaning
-- Schema enforcement
-- Deduplication
-- Data quality checks
+- Implemented: `silver.matches` + `silver.refresh_matches()`
+- Implemented: `silver.ladder_rows` + `silver.refresh_ladder()`
+- Next: Data validation and quality checks
 
 ### Gold Layer
 - Business logic implementation

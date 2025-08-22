@@ -6,7 +6,7 @@ Orchestrates API calls, configuration management, and optional database storage.
 
 import os
 import uuid
-from typing import Dict, Any
+
 from flask import Request, jsonify
 
 # Load environment variables and setup logging
@@ -25,7 +25,7 @@ except ImportError:
 
 from .api_client import BowlsLinkAPIClient
 from .config import ConfigManager
-from .gcp_utils import GCPLogger, GCPConfig
+from .gcp_utils import GCPConfig, GCPLogger
 from .supabase_client import SupabaseClient, SupabaseConfig
 
 

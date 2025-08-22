@@ -35,6 +35,31 @@ CREATE INDEX IF NOT EXISTS idx_raw_events_round ON bronze.raw_events(round_numbe
 CREATE INDEX IF NOT EXISTS idx_raw_events_created_at ON bronze.raw_events(created_at);
 CREATE INDEX IF NOT EXISTS idx_raw_events_body_hash ON bronze.raw_events(body_hash);
 
+-- Cleanup pre-existing duplicates so unique index creation succeeds
+WITH ranked AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY endpoint, competition_id, COALESCE(round_number, -1), COALESCE(section_number, -1), body_hash
+      ORDER BY created_at DESC, id DESC
+    ) AS rnum
+  FROM bronze.raw_events
+)
+DELETE FROM bronze.raw_events bre
+USING ranked r
+WHERE bre.id = r.id
+  AND r.rnum > 1;
+
+-- Prevent exact duplicate inserts of the same API response payload
+CREATE UNIQUE INDEX IF NOT EXISTS ux_raw_events_dedupe
+  ON bronze.raw_events(
+    endpoint,
+    competition_id,
+    COALESCE(round_number, -1),
+    COALESCE(section_number, -1),
+    body_hash
+  );
+
 -- Create a view for easy querying of latest events
 CREATE OR REPLACE VIEW bronze.latest_events AS
 SELECT DISTINCT ON (competition_id, endpoint, round_number, section_number)

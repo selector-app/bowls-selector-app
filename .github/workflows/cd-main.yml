@@ -54,6 +54,15 @@ jobs:
             psql "${{ secrets.SUPABASE_DB_URI }}" -v ON_ERROR_STOP=1 -f "$f"
           done
 
+      - name: Run Silver migration on Supabase
+        run: |
+          for f in db/silver/*.sql; do
+            if [ -e "$f" ]; then
+              echo "Applying $f"
+              psql "${{ secrets.SUPABASE_DB_URI }}" -v ON_ERROR_STOP=1 -f "$f"
+            fi
+          done
+
       - name: Ensure Secret exists (PG_DSN)
         continue-on-error: true
         run: |

@@ -6,12 +6,12 @@ Run this to verify your Supabase setup is working.
 
 import os
 import sys
-import json
 
 # Add the current directory to Python path so we can import our modules
 sys.path.insert(0, os.getcwd())
 
 from bronze.supabase_client import SupabaseClient, SupabaseConfig
+
 
 def test_supabase_connection():
     """Test basic Supabase connectivity."""
@@ -38,7 +38,7 @@ def test_supabase_connection():
             with conn.cursor() as cur:
                 cur.execute("SELECT version()")
                 version = cur.fetchone()[0]
-                print(f"✅ Database connection successful!")
+                print("✅ Database connection successful!")
                 print(f"   PostgreSQL version: {version}")
         
         return True

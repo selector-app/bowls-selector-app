@@ -4,9 +4,10 @@ API client module for BowlsLink Results API interactions.
 Handles HTTP requests, JSON parsing, rate limiting, and response processing.
 """
 
-import time
 import hashlib
-from typing import Any, Dict, List, Tuple
+import time
+from typing import Any
+
 import httpx
 import orjson
 
@@ -43,7 +44,7 @@ class BowlsLinkAPIClient:
         """
         return hashlib.sha256(content or b"").hexdigest()
     
-    def get_json(self, client: httpx.Client, url: str) -> Tuple[int, Any, str]:
+    def get_json(self, client: httpx.Client, url: str) -> tuple[int, Any, str]:
         """
         Perform a GET and parse JSON if the content-type is JSON.
         
@@ -96,7 +97,7 @@ class BowlsLinkAPIClient:
         """Get an HTTP client instance."""
         return httpx.Client(timeout=self.timeout, limits=self.limits, headers=self.headers)
     
-    def discover_rounds(self, comp_id: str, matches_template: str, cap: int = 24) -> Tuple[int, int]:
+    def discover_rounds(self, comp_id: str, matches_template: str, cap: int = 24) -> tuple[int, int]:
         """
         Heuristically detect the inclusive round range for a competition.
         
@@ -133,7 +134,7 @@ class BowlsLinkAPIClient:
             
         return start, end
     
-    def discover_sections(self, comp_id: str, ladder_template: str, cap: int = 30) -> Tuple[int, int]:
+    def discover_sections(self, comp_id: str, ladder_template: str, cap: int = 30) -> tuple[int, int]:
         """
         Heuristically detect the inclusive section range for a competition ladder.
         
@@ -170,7 +171,7 @@ class BowlsLinkAPIClient:
             
         return start, end
     
-    def execute_requests(self, jobs: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def execute_requests(self, jobs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """
         Execute a list of HTTP jobs and return results and errors.
         

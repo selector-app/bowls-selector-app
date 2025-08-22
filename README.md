@@ -45,7 +45,7 @@ THROTTLE_S=0.3
 
 5) Run locally (from `data-pipeline/`):
 ```bash
-python -m functions_framework --target=main --source=bronze/main.py --port=8080
+python -m functions_framework --target=main --source=main.py --port=8080
 ```
 
 ## Documentation
