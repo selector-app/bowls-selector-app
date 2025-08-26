@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS silver.ladder_rows (
     competition_id       UUID      NOT NULL,
     section_number       INTEGER   NOT NULL,
     competitor_id        TEXT      NOT NULL,
-    player_name          TEXT      NOT NULL,
     position             INTEGER   NOT NULL,
     played               INTEGER   NOT NULL,
     wins                 INTEGER   NOT NULL,
@@ -18,14 +17,7 @@ CREATE TABLE IF NOT EXISTS silver.ladder_rows (
     score                INTEGER   NOT NULL,
     against_score        INTEGER   NOT NULL,
     score_difference     INTEGER   NOT NULL,
-    score_percentage     DECIMAL(6,2) NOT NULL,
-    competition_name     TEXT,
-    competition_status   TEXT,
-    start_date_utc       BIGINT,
-    end_date_utc         BIGINT,
-    competition_type     TEXT,
-    competition_type_label TEXT,
-    format               TEXT,
+    score_percentage     DECIMAL   NOT NULL,
     row_json             JSONB     NOT NULL,
     source_event_hash    TEXT,
     source_event_at      TIMESTAMPTZ,
@@ -68,7 +60,6 @@ BEGIN
             competition_id,
             (lr->'attributes'->>'pool')::int AS section_number,
             lr->'attributes'->>'competitorId' AS competitor_id,
-            lr->'attributes'->'fields'->>'name' AS player_name,
             (lr->'attributes'->'fields'->>'position')::int AS position,
             (lr->'attributes'->'fields'->>'played')::int AS played,
             (lr->'attributes'->'fields'->>'wins')::int AS wins,
@@ -80,35 +71,23 @@ BEGIN
             (lr->'attributes'->'fields'->>'againstScore')::int AS against_score,
             (lr->'attributes'->'fields'->>'scoreDifference')::int AS score_difference,
             (lr->'attributes'->'fields'->>'scorePercentage')::decimal AS score_percentage,
-            comp->'attributes'->>'name' AS competition_name,
-            comp->'attributes'->>'competitionStatus' AS competition_status,
-            (comp->'attributes'->>'startDateUtc')::bigint AS start_date_utc,
-            (comp->'attributes'->>'endDateUtc')::bigint AS end_date_utc,
-            comp->'attributes'->>'competitionType' AS competition_type,
-            comp->'attributes'->>'competitionTypeLabel' AS competition_type_label,
-            comp->'attributes'->>'format' AS format,
             lr AS row_json,
             source_event_hash,
             source_event_at
         FROM parsed
         WHERE lr->'attributes'->>'competitorId' IS NOT NULL
-          AND lr->'attributes'->'fields'->>'name' IS NOT NULL
           AND lr->'attributes'->'fields'->>'position' IS NOT NULL
     )
     INSERT INTO silver.ladder_rows (
-        competition_id, section_number, competitor_id, player_name,
+        competition_id, section_number, competitor_id,
         position, played, wins, losses, draws, byes, points, 
         score, against_score, score_difference, score_percentage,
-        competition_name, competition_status, start_date_utc, end_date_utc,
-        competition_type, competition_type_label, format,
         row_json, source_event_hash, source_event_at, created_at, updated_at
     )
     SELECT
-        s.competition_id, s.section_number, s.competitor_id, s.player_name,
+        s.competition_id, s.section_number, s.competitor_id,
         s.position, s.played, s.wins, s.losses, s.draws, s.byes, s.points,
         s.score, s.against_score, s.score_difference, s.score_percentage,
-        s.competition_name, s.competition_status, s.start_date_utc, s.end_date_utc,
-        s.competition_type, s.competition_type_label, s.format,
         s.row_json, s.source_event_hash, s.source_event_at, NOW(), NOW()
     FROM shaped s
     ON CONFLICT (competition_id, section_number, competitor_id) DO NOTHING;
@@ -140,7 +119,6 @@ BEGIN
             competition_id,
             (lr->'attributes'->>'pool')::int AS section_number,
             lr->'attributes'->>'competitorId' AS competitor_id,
-            lr->'attributes'->'fields'->>'name' AS player_name,
             (lr->'attributes'->'fields'->>'position')::int AS position,
             (lr->'attributes'->'fields'->>'played')::int AS played,
             (lr->'attributes'->'fields'->>'wins')::int AS wins,
@@ -152,24 +130,15 @@ BEGIN
             (lr->'attributes'->'fields'->>'againstScore')::int AS against_score,
             (lr->'attributes'->'fields'->>'scoreDifference')::int AS score_difference,
             (lr->'attributes'->'fields'->>'scorePercentage')::decimal AS score_percentage,
-            comp->'attributes'->>'name' AS competition_name,
-            comp->'attributes'->>'competitionStatus' AS competition_status,
-            (comp->'attributes'->>'startDateUtc')::bigint AS start_date_utc,
-            (comp->'attributes'->>'endDateUtc')::bigint AS end_date_utc,
-            comp->'attributes'->>'competitionType' AS competition_type,
-            comp->'attributes'->>'competitionTypeLabel' AS competition_type_label,
-            comp->'attributes'->>'format' AS format,
             lr AS row_json,
             source_event_hash,
             source_event_at
         FROM parsed
         WHERE lr->'attributes'->>'competitorId' IS NOT NULL
-          AND lr->'attributes'->'fields'->>'name' IS NOT NULL
           AND lr->'attributes'->'fields'->>'position' IS NOT NULL
     )
     UPDATE silver.ladder_rows t
-    SET player_name       = s.player_name,
-        position          = s.position,
+    SET position          = s.position,
         played            = s.played,
         wins              = s.wins,
         losses            = s.losses,
@@ -180,13 +149,6 @@ BEGIN
         against_score     = s.against_score,
         score_difference  = s.score_difference,
         score_percentage  = s.score_percentage,
-        competition_name  = s.competition_name,
-        competition_status = s.competition_status,
-        start_date_utc    = s.start_date_utc,
-        end_date_utc      = s.end_date_utc,
-        competition_type  = s.competition_type,
-        competition_type_label = s.competition_type_label,
-        format            = s.format,
         row_json          = s.row_json,
         source_event_hash = s.source_event_hash,
         source_event_at   = s.source_event_at,

@@ -14,6 +14,7 @@ erDiagram
         TEXT competition_type
         TEXT competition_status
         TEXT result_type
+        TEXT competition_event_name
     }
 
     COMPETITION_MATCHES {
@@ -45,14 +46,16 @@ erDiagram
     COMPETITION_COMPETITORS {
         UUID competitor_id PK
         UUID competition_id PK
-        TEXT name
+        TEXT first_name
+        TEXT last_name
+        BOOLEAN is_competing
+        INTEGER matches_played
     }
 
     LADDER_ROWS {
         UUID competition_id PK
         INT section_number PK
         TEXT competitor_id PK
-        TEXT player_name
         INT position
         INT played
         INT wins
@@ -64,13 +67,6 @@ erDiagram
         INT against_score
         INT score_difference
         DECIMAL score_percentage
-        TEXT competition_name
-        TEXT competition_status
-        BIGINT start_date_utc
-        BIGINT end_date_utc
-        TEXT competition_type
-        TEXT competition_type_label
-        TEXT format
     }
 
     %% Relationships
@@ -93,6 +89,8 @@ erDiagram
 - COMPETITION_MATCHES.competition_id, result_id, competitor_one_id, competitor_two_id are nullable in DDL; cardinalities above reflect intended semantics from refresh logic.
 - COMPETITION_RESULTS.match_id and COMPETITION_MATCHES.result_id indicate a conceptual 1:1 relationship, but either side may be null depending on source data timing.
 - LADDER_ROWS.competitor_id is TEXT (not UUID) per source payload; it is not directly linked to COMPETITION_COMPETITORS.competitor_id. Use competition_id to group ladder rows within competitions.
+- COMPETITIONS table now includes competition_event_name from CompetitionEvent objects in the competition endpoint.
+- LADDER_ROWS table has been normalized - competition metadata (name, status, dates, type, format) and player_name removed as they're available via JOIN to COMPETITIONS and COMPETITION_COMPETITORS tables respectively.
 - Timestamps are stored as BIGINT UTC epoch values for date/time fields and TIMESTAMPTZ for source event metadata.
 
 ## How to Render
