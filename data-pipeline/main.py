@@ -8,7 +8,7 @@ which requires a main.py file in the root of the source directory.
 from flask import Request, jsonify
 
 from bronze.main import main as bronze_main
-from silver.refresh import refresh_ladder, refresh_matches
+from silver.refresh import refresh_all_silver
 
 
 def main(request: Request):
@@ -37,10 +37,7 @@ def main(request: Request):
     # Trigger Silver refresh (in-DB). Safe if DSN missing.
     silver_result = {"skipped": True, "reason": "unknown"}
     try:
-        silver_result = {
-            "matches": refresh_matches(),
-            "ladder": refresh_ladder(),
-        }
+        silver_result = refresh_all_silver()
     except Exception as e:
         silver_result = {"error": str(e)}
 
