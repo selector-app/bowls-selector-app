@@ -54,6 +54,7 @@ python -m functions_framework --target=main --source=main.py --port=8080
 - Deployment (GitHub Actions → Cloud Functions + Scheduler): `docs/DEPLOYMENT.md`
 - Local development guide: `docs/LOCAL_DEV.md`
 - Pipeline details and examples: `data-pipeline/README.md`
+- Silver schema ER diagram: `docs/silver_er_diagram.md`
 
 ## Notes and Next Steps
 
