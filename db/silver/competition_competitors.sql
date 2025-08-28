@@ -9,7 +9,6 @@ CREATE TABLE IF NOT EXISTS silver.competition_competitors (
     first_name         TEXT      NOT NULL,
     last_name          TEXT      NOT NULL,
     is_competing       BOOLEAN   NOT NULL,
-    matches_played     INTEGER   NOT NULL,
     source_event_hash  TEXT,
     source_event_at    TIMESTAMPTZ,
     created_at         TIMESTAMPTZ DEFAULT NOW(),
@@ -46,7 +45,6 @@ BEGIN
             inc->'attributes'->>'firstName' AS first_name,
             inc->'attributes'->>'lastName' AS last_name,
             (inc->'attributes'->>'isCompeting')::boolean AS is_competing,
-            (inc->'attributes'->>'matchesPlayed')::integer AS matches_played,
             source_event_hash,
             source_event_at
         FROM parsed
@@ -55,11 +53,11 @@ BEGIN
           AND inc->'attributes'->>'lastName' IS NOT NULL
     )
     INSERT INTO silver.competition_competitors (
-        competitor_id, competition_id, first_name, last_name, is_competing, matches_played,
+        competitor_id, competition_id, first_name, last_name, is_competing,
         source_event_hash, source_event_at, created_at, updated_at
     )
     SELECT
-        s.competitor_id, s.competition_id, s.first_name, s.last_name, s.is_competing, s.matches_played,
+        s.competitor_id, s.competition_id, s.first_name, s.last_name, s.is_competing,
         s.source_event_hash, s.source_event_at, NOW(), NOW()
     FROM shaped s
     ON CONFLICT (competitor_id, competition_id) DO NOTHING;
@@ -85,7 +83,6 @@ BEGIN
             inc->'attributes'->>'firstName' AS first_name,
             inc->'attributes'->>'lastName' AS last_name,
             (inc->'attributes'->>'isCompeting')::boolean AS is_competing,
-            (inc->'attributes'->>'matchesPlayed')::integer AS matches_played,
             source_event_hash,
             source_event_at
         FROM parsed
@@ -97,7 +94,6 @@ BEGIN
     SET first_name        = s.first_name,
         last_name         = s.last_name,
         is_competing      = s.is_competing,
-        matches_played    = s.matches_played,
         source_event_hash = s.source_event_hash,
         source_event_at   = s.source_event_at,
         updated_at        = NOW()

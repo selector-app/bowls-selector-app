@@ -31,7 +31,7 @@ data-pipeline/
 │   └── utils.py           # Common functions
 ├── config/                 # Configuration files
 │   └── endpoints.json     # API endpoint definitions
-├── requirements.txt        # Python dependencies
+├── requirements.txt        # Python dependencies (auto-generated from pyproject.toml)
 ├── test_supabase.py       # Supabase connection test
 └── env_setup.md           # Environment setup guide
 ```
@@ -41,7 +41,7 @@ data-pipeline/
 ### 1. Install Dependencies
 
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 ### 2. Configure Environment
@@ -69,13 +69,13 @@ Run the SQL schemas in your Supabase SQL editor (or via psql):
 ### 4. Test Connection
 
 ```bash
-python test_supabase.py
+uv run python test_supabase.py
 ```
 
 ### 5. Run the Pipeline
 
 ```bash
-python -m functions_framework --target=main --source=main.py --port=8080
+uv run python -m functions_framework --target=main --source=main.py --port=8080
 ```
 
 Then make a request to `http://localhost:8080/`

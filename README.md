@@ -24,11 +24,11 @@ Repository for the Bowls Selector application, with a focus on a production-read
 
 If you only need the pipeline, see `data-pipeline/README.md` for a deeper dive. Below is the short version:
 
-1) Prereqs: Python 3.11+, Postgres/Supabase connection string
+1) Prereqs: Python 3.11+, uv package manager, Postgres/Supabase connection string
 
-2) Install dependencies (from `data-pipeline/`):
+2) Install dependencies:
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
 
 3) Configure environment (in `data-pipeline/.env`):
@@ -43,9 +43,9 @@ THROTTLE_S=0.3
 -- copy from db/bronze/supabase_schema.sql
 ```
 
-5) Run locally (from `data-pipeline/`):
+5) Run locally:
 ```bash
-python -m functions_framework --target=main --source=main.py --port=8080
+uv run python -m functions_framework --target=main --source=data-pipeline/main.py --port=8080
 ```
 
 ## Documentation

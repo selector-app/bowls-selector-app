@@ -74,6 +74,16 @@ jobs:
           printf '%s' "${{ secrets.SUPABASE_DB_URI }}" | \
           gcloud secrets versions add "$PG_SECRET_NAME" --data-file=-
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Create requirements.txt for Cloud Functions
+        run: |
+          cd data-pipeline
+          uv export --no-dev --format requirements-txt > requirements.txt
+
       - name: Deploy Cloud Function (Gen2, Python)
         run: |
           gcloud functions deploy "$FUNC_NAME" \
