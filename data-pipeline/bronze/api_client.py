@@ -44,6 +44,32 @@ class BowlsLinkAPIClient:
         """
         return hashlib.sha256(content or b"").hexdigest()
     
+    def extract_match_ids(self, matches_response: dict) -> list[str]:
+        """
+        Extract match IDs from a matches API response.
+        
+        Args:
+            matches_response: The JSON response from the matches endpoint
+            
+        Returns:
+            List of match ID strings
+        """
+        match_ids = []
+        
+        if not isinstance(matches_response, dict):
+            return match_ids
+        
+        # Look in the include array for match objects
+        includes = matches_response.get("include", [])
+        if isinstance(includes, list):
+            for item in includes:
+                if isinstance(item, dict) and item.get("type") == "match":
+                    match_id = item.get("id")
+                    if match_id:
+                        match_ids.append(match_id)
+        
+        return match_ids
+    
     def get_json(self, client: httpx.Client, url: str) -> tuple[int, Any, str]:
         """
         Perform a GET and parse JSON if the content-type is JSON.
@@ -195,6 +221,7 @@ class BowlsLinkAPIClient:
                         "competition_id": job["competition_id"],
                         "round": job["round"],
                         "section": job.get("section"),
+                        "match_id": job.get("match_id"),  # Add match_id support
                         "url": job["url"],
                         "status_code": status,
                         "body_hash": bhash,

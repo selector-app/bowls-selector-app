@@ -1,8 +1,8 @@
 {
     "competitions": {
       "ids": [
-        "6484937e-4cfb-4ab5-a946-e5a00b78c61a",
-        "410f93c1-4c0e-41b1-8403-feae6b1ebc56"
+        "60fbb8cf-8d79-467f-84f4-bf97b9e17fcc",
+        "adc7cecb-042e-4f5f-b884-80f23d6a9c16"
       ]
     },
     "sections": { "mode": "auto", "start": 1, "end": 20, "cap": 30 },
@@ -18,6 +18,10 @@
       {
         "name": "competition",
         "url": "https://api.bowlslink.com.au/results-api/competition/{competition_id}"
+      },
+      {
+        "name": "match",
+        "url": "https://api.bowlslink.com.au/results-api/match/{match_id}"
       }
     ]
   }

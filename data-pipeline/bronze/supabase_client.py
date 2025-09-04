@@ -49,15 +49,16 @@ class SupabaseClient:
                         cur.execute("""
                             INSERT INTO bronze.raw_events(
                                 source, endpoint, request_url, status_code,
-                                competition_id, round_number, section_number, etl_version, body_hash, payload
+                                competition_id, round_number, section_number, match_id, etl_version, body_hash, payload
                             )
-                            SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                            SELECT %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                             WHERE NOT EXISTS (
                                 SELECT 1 FROM bronze.raw_events r
                                 WHERE r.endpoint = %s
                                   AND r.competition_id = %s
                                   AND COALESCE(r.round_number, -1) = COALESCE(%s, -1)
                                   AND COALESCE(r.section_number, -1) = COALESCE(%s, -1)
+                                  AND COALESCE(r.match_id, '') = COALESCE(%s, '')
                                   AND r.body_hash = %s
                             )
                         """, (
@@ -68,6 +69,7 @@ class SupabaseClient:
                             event["competition_id"],
                             event["round"],
                             event.get("section"),
+                            event.get("match_id"),
                             "v1",
                             event["body_hash"],
                             json.dumps(event["payload"]),
@@ -76,6 +78,7 @@ class SupabaseClient:
                             event["competition_id"],
                             event["round"],
                             event.get("section"),
+                            event.get("match_id"),
                             event["body_hash"],
                         ))
                         # rowcount is 1 when inserted, 0 when conflict prevented insert
@@ -85,6 +88,49 @@ class SupabaseClient:
                         continue
         
         return stored_count
+
+    def get_latest_events_by_endpoint(self, endpoint: str) -> list[dict]:
+        """
+        Get the latest events for a specific endpoint.
+        
+        Args:
+            endpoint: The endpoint name to filter by
+            
+        Returns:
+            List of event dictionaries with keys: competition_id, payload, etc.
+        """
+        events = []
+        
+        try:
+            with self._get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                    cur.execute("""
+                        SELECT DISTINCT ON (competition_id, round_number, section_number)
+                            competition_id, 
+                            payload, 
+                            created_at, 
+                            body_hash,
+                            round_number,
+                            section_number
+                        FROM bronze.raw_events 
+                        WHERE endpoint = %s 
+                          AND status_code = 200
+                        ORDER BY competition_id, round_number, section_number, created_at DESC
+                    """, (endpoint,))
+                    
+                    for row in cur.fetchall():
+                        events.append({
+                            "competition_id": row["competition_id"],
+                            "payload": json.loads(row["payload"]) if isinstance(row["payload"], str) else row["payload"],
+                            "created_at": row["created_at"],
+                            "body_hash": row["body_hash"],
+                            "round_number": row["round_number"],
+                            "section_number": row["section_number"]
+                        })
+        except Exception as e:
+            print(f"Error fetching events for endpoint {endpoint}: {e}")
+        
+        return events
     
     def store_catalog_snapshot(self, catalog: dict[str, Any]) -> bool:
         """

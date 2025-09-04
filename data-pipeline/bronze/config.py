@@ -89,6 +89,45 @@ class ConfigManager:
                     
         return out
     
+    def collect_match_ids_from_bronze(self, supabase_client) -> dict[str, list[str]]:
+        """
+        Collect match IDs from existing bronze matches data.
+        
+        Args:
+            supabase_client: SupabaseClient instance
+            
+        Returns:
+            Dict mapping competition_id to list of match_ids
+        """
+        if not supabase_client:
+            return {}
+        
+        # Get latest matches data from bronze
+        matches_data = supabase_client.get_latest_events_by_endpoint("matches")
+        
+        competition_match_ids = {}
+        
+        # Import here to avoid circular import
+        from .api_client import BowlsLinkAPIClient
+        api_client = BowlsLinkAPIClient()
+        
+        for event in matches_data:
+            comp_id = event.get("competition_id")
+            payload = event.get("payload", {})
+            
+            match_ids = api_client.extract_match_ids(payload)
+            
+            if comp_id and match_ids:
+                if comp_id not in competition_match_ids:
+                    competition_match_ids[comp_id] = []
+                competition_match_ids[comp_id].extend(match_ids)
+        
+        # Remove duplicates
+        for comp_id in competition_match_ids:
+            competition_match_ids[comp_id] = list(set(competition_match_ids[comp_id]))
+        
+        return competition_match_ids
+    
     def is_rounded_endpoint(self, template: str) -> bool:
         """
         Detect if the endpoint template uses a {round} placeholder.
@@ -113,35 +152,67 @@ class ConfigManager:
         """
         return "{section}" in template
     
+    def is_match_endpoint(self, template: str) -> bool:
+        """
+        Detect if the endpoint template uses a {match_id} placeholder.
+        
+        Args:
+            template: URL template string
+            
+        Returns:
+            True if template contains {match_id} placeholder
+        """
+        return "{match_id}" in template
+    
     def render_jobs(self, cfg: dict[str, Any], comp_ids: list[str], 
-                   api_client: Any) -> list[dict[str, Any]]:
+                   api_client: Any, supabase_client: Any = None) -> list[dict[str, Any]]:
         """
         Expand the catalog into a concrete list of HTTP jobs to perform.
         
-        For each endpoint template and competition ID, optionally expand over `round` or `section`
-        depending on the catalog's configuration:
+        For each endpoint template and competition ID, optionally expand over `round`, `section`,
+        or `match_id` depending on the catalog's configuration:
           - Rounds: "manual" uses `[start, end]` provided in the config, "auto" probes using `discover_rounds`
           - Sections: "manual" uses `[start, end]` provided in the config, "auto" probes using `discover_sections`
+          - Match IDs: Extracted from existing matches data in bronze layer
         
         Args:
             cfg: The loaded catalog configuration
             comp_ids: List of competition IDs to process
             api_client: API client instance for round/section discovery
+            supabase_client: Supabase client for fetching existing data
             
         Returns:
-            List of job dicts with keys: endpoint, competition_id, round, section, url
+            List of job dicts with keys: endpoint, competition_id, round, section, match_id, url
         """
         jobs = []
         rounds_cfg = cfg.get("rounds", {"mode": "manual", "start": 1, "end": 1})
         sections_cfg = cfg.get("sections", {"mode": "manual", "start": 1, "end": 1})
         
+        # Collect existing match IDs if we have a supabase client
+        match_ids_by_comp = {}
+        if supabase_client:
+            match_ids_by_comp = self.collect_match_ids_from_bronze(supabase_client)
+        
         for ep in cfg["endpoints"]:
             name, template = ep["name"], ep["url"]
             rounded = self.is_rounded_endpoint(template)
             sectioned = self.is_sectioned_endpoint(template)
+            is_match = self.is_match_endpoint(template)
             
             for comp_id in comp_ids:
-                if rounded:
+                if is_match:
+                    # Handle match detail endpoints
+                    match_ids = match_ids_by_comp.get(comp_id, [])
+                    for match_id in match_ids:
+                        jobs.append({
+                            "endpoint": name,
+                            "competition_id": comp_id,
+                            "round": None,
+                            "section": None,
+                            "match_id": match_id,
+                            "url": template.format(match_id=match_id)
+                        })
+                elif rounded:
                     # Handle endpoints with round placeholders
                     mode = rounds_cfg.get("mode", "manual")
                     cap = int(rounds_cfg.get("cap", 24))
@@ -161,6 +232,7 @@ class ConfigManager:
                             "competition_id": comp_id,
                             "round": r,
                             "section": None,
+                            "match_id": None,
                             "url": template.format(competition_id=comp_id, round=r)
                         })
                 elif sectioned:
@@ -183,6 +255,7 @@ class ConfigManager:
                             "competition_id": comp_id,
                             "round": None,
                             "section": s,
+                            "match_id": None,
                             "url": template.format(competition_id=comp_id, section=s)
                         })
                 else:
@@ -192,6 +265,7 @@ class ConfigManager:
                         "competition_id": comp_id,
                         "round": None,
                         "section": None,
+                        "match_id": None,
                         "url": template.format(competition_id=comp_id)
                     })
         

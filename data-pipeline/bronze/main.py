@@ -64,14 +64,27 @@ def main(request: Request):
             return jsonify({"status": "error", "reason": "no competitions provided"}), 400
         
         # Generate jobs
-        jobs = config_manager.render_jobs(cfg, comp_ids, api_client)
+        supabase_client = None
+        if SupabaseConfig.is_available():
+            try:
+                supabase_client = SupabaseClient(SupabaseConfig.get_connection_string())
+            except Exception:
+                pass  # Continue without supabase for match ID collection
+        
+        jobs = config_manager.render_jobs(cfg, comp_ids, api_client, supabase_client)
         
         # Execute API requests
         results, errors = api_client.execute_requests(jobs)
         
         # Optionally store in Supabase if configured
         stored_count = 0
-        if SupabaseConfig.is_available():
+        if supabase_client:
+            try:
+                stored_count = supabase_client.store_raw_events(results)
+                supabase_client.store_catalog_snapshot(cfg)
+            except Exception as e:
+                logger.log_error(request_id, f"Supabase storage failed: {e}")
+        elif SupabaseConfig.is_available():
             try:
                 supabase = SupabaseClient(SupabaseConfig.get_connection_string())
                 stored_count = supabase.store_raw_events(results)
