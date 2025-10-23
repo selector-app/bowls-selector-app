@@ -28,17 +28,18 @@ class ConfigManager:
             if env_path:
                 self.catalog_path = env_path
             else:
-                # Try to find the config file in the config directory
-                # Get the current working directory and look for config/endpoints.json
-                import os as os_module
-                current_dir = os_module.getcwd()
-                config_path = os_module.path.join(current_dir, "config", "endpoints.json")
+                # Find the config file relative to this module's location
+                # This ensures it works regardless of where the command is run from
+                module_dir = os.path.dirname(os.path.abspath(__file__))
+                # Go up one level from bronze/ to data-pipeline/, then into config/
+                config_path = os.path.join(os.path.dirname(module_dir), "config", "endpoints.json")
                 
-                if os_module.path.exists(config_path):
-                    self.catalog_path = config_path
-                else:
-                    # Fallback to current directory
-                    self.catalog_path = "endpoints.json"
+                print(f"DEBUG: __file__ = {__file__}")
+                print(f"DEBUG: module_dir = {module_dir}")
+                print(f"DEBUG: config_path = {config_path}")
+                print(f"DEBUG: config_path exists? {os.path.exists(config_path)}")
+                
+                self.catalog_path = config_path
         
         # Regex to extract competition UUID from Results Portal URLs
         self.comp_id_regex = re.compile(r"/competition/([0-9a-fA-F-]{36})")

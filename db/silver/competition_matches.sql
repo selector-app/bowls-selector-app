@@ -26,7 +26,7 @@ CREATE INDEX IF NOT EXISTS idx_competition_matches_competition_id ON silver.comp
 CREATE INDEX IF NOT EXISTS idx_competition_matches_round ON silver.competition_matches(round);
 CREATE INDEX IF NOT EXISTS idx_competition_matches_updated_at ON silver.competition_matches(updated_at);
 
--- Refresh function to upsert from bronze.latest_events (endpoint = 'matches')
+-- Refresh function to upsert from bronze.latest_events (endpoints: 'matches' or 'match')
 CREATE OR REPLACE FUNCTION silver.refresh_competition_matches()
 RETURNS JSON AS $$
 DECLARE
@@ -40,7 +40,7 @@ BEGIN
             inc AS inc
         FROM bronze.latest_events le,
              LATERAL jsonb_array_elements(le.payload->'include') inc
-        WHERE le.endpoint = 'matches'
+        WHERE le.endpoint IN ('matches', 'match')
           AND le.status_code = 200
           AND (inc->>'type') = 'match'
     ), shaped AS (
@@ -91,7 +91,7 @@ BEGIN
             inc AS inc
         FROM bronze.latest_events le,
              LATERAL jsonb_array_elements(le.payload->'include') inc
-        WHERE le.endpoint = 'matches'
+        WHERE le.endpoint IN ('matches', 'match')
           AND le.status_code = 200
           AND (inc->>'type') = 'match'
     ), shaped AS (

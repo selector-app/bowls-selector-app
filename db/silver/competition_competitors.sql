@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS silver.competition_competitors (
     first_name         TEXT      NOT NULL,
     last_name          TEXT      NOT NULL,
     is_competing       BOOLEAN   NOT NULL,
+    assigned_position  TEXT,
     source_event_hash  TEXT,
     source_event_at    TIMESTAMPTZ,
     created_at         TIMESTAMPTZ DEFAULT NOW(),
@@ -53,11 +54,11 @@ BEGIN
           AND inc->'attributes'->>'lastName' IS NOT NULL
     )
     INSERT INTO silver.competition_competitors (
-        competitor_id, competition_id, first_name, last_name, is_competing,
+        competitor_id, competition_id, first_name, last_name, is_competing, assigned_position,
         source_event_hash, source_event_at, created_at, updated_at
     )
     SELECT
-        s.competitor_id, s.competition_id, s.first_name, s.last_name, s.is_competing,
+        s.competitor_id, s.competition_id, s.first_name, s.last_name, s.is_competing, NULL,
         s.source_event_hash, s.source_event_at, NOW(), NOW()
     FROM shaped s
     ON CONFLICT (competitor_id, competition_id) DO NOTHING;

@@ -2,7 +2,8 @@
     "competitions": {
       "ids": [
         "60fbb8cf-8d79-467f-84f4-bf97b9e17fcc",
-        "adc7cecb-042e-4f5f-b884-80f23d6a9c16"
+        "adc7cecb-042e-4f5f-b884-80f23d6a9c16",
+        "c7f527d0-d2f4-471c-bfcc-877be369e54a"
       ]
     },
     "sections": { "mode": "auto", "start": 1, "end": 20, "cap": 30 },
